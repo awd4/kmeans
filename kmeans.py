@@ -116,7 +116,7 @@ def test_kmeans():
 def test_elkan():
     np.random.seed(12345)
     d1 = np.random.rand(500, 2)
-    c1 = centers(d1, 10, alg='elkan')
+    c1 = centers(d1, 10, alg='lloyd')
     l1 = assign(d1, c1)
     u1 = cluster(d1, c1)
     np.random.seed(12345)
