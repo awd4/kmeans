@@ -36,6 +36,12 @@ def cluster(data, cntrs):
     return c
 
 
+def _init(data, k):
+    cntrs = data[np.random.randint(n, size=k)] 
+    cntrs += np.random.randn(*cntrs.shape) / 1000.
+    return cntrs
+
+
 def _score(data, cntrs):
     d = cykmeans._sq_distances(data, cntrs)
     return d.min(axis=1).sum()
@@ -44,8 +50,7 @@ def _score(data, cntrs):
 def _kmeans(data, k, iters=20, alg='lloyd'):
     assert data.dtype == np.float64 and k >= 1 and iters >= 0
     n = len(data)
-    cntrs = data[np.random.randint(n, size=k)] 
-    cntrs += np.random.randn(*cntrs.shape) / 1000.
+    cntrs = _init(data, k)
     dists = np.zeros((n, k))
     prev_a = None
     valid = np.ones(k)
