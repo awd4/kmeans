@@ -6,7 +6,7 @@ import numpy as np
 
 def kmeans(data, k, iters=20, reps=1):
     # TODO: prefer candidate centers that have exactly k centers
-    data = np.array(data, dtype=float)
+    data = np.require(data, np.float64, 'C')
     cntrs = _kmeans(data, k, iters)
     best = _score(data, cntrs)
     for r in range(1, reps):
@@ -19,6 +19,7 @@ def kmeans(data, k, iters=20, reps=1):
 
 
 def assignments(data, cntrs, dists=None):
+    data = np.require(data, np.float64, 'C')
     d = cykmeans._sq_distances(data, cntrs, dists)
     a = d.argmin(axis=1)
     return a
