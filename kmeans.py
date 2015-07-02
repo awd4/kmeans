@@ -4,13 +4,13 @@ import cykmeans
 import numpy as np
 
 
-def centers(data, k, iters=20, reps=1):
+def centers(data, k, iters=20, reps=1, alg='lloyd'):
     # TODO: prefer candidate centers that have exactly k centers
     data = np.require(data, np.float64, 'C')
-    cntrs = _kmeans(data, k, iters)
+    cntrs = _kmeans(data, k, iters, alg)
     best = _score(data, cntrs)
     for r in range(1, reps):
-        c = _kmeans(data, k, iters)         # candidate centers
+        c = _kmeans(data, k, iters, alg)    # candidate centers
         s = score(data, c)
         if s < best:
             best = s
@@ -41,7 +41,7 @@ def _score(data, cntrs):
     return d.min(axis=1).sum()
 
 
-def _kmeans(data, k, iters=20):
+def _kmeans(data, k, iters=20, alg='lloyd'):
     assert data.dtype == np.float64 and k >= 1 and iters >= 0
     n = len(data)
     cntrs = data[np.random.randint(n, size=k)] 
@@ -76,5 +76,21 @@ def test_kmeans():
     cntrs = centers(data, 10)
     labels = assign(data, cntrs)
     clusters = cluster(data, cntrs)
+
+def test_elkan():
+    np.random.seed(12345)
+    d1 = np.random.rand(500, 2)
+    c1 = centers(d1, 10, alg='elkan')
+    l1 = assign(d1, c1)
+    u1 = cluster(d1, c1)
+    np.random.seed(12345)
+    d2 = np.random.rand(500, 2)
+    c2 = centers(d2, 10, alg='elkan')
+    l2 = assign(d2, c2)
+    u2 = cluster(d2, c2)
+    assert np.all( d1 == d2 )
+    assert np.all( c1 == c2 )
+    assert np.all( l1 == l2 )
+    assert all( [np.all( e1 == e2 ) for e1, e2 in zip(u1, u2)] )
 
 
