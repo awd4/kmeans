@@ -1,13 +1,13 @@
 import numpy as np
-cimport numpy as cnp
+#cimport numpy as cnp
 
-cimport cython
-from cython cimport parallel
+import cython
+#from cython cimport parallel
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double _sq_dist(double[::1] x, double[::1] y) nogil:
+def _sq_dist(double[::1] x, double[::1] y):
     cdef:
         size_t i, n
         double sd, diff
@@ -44,10 +44,11 @@ def _sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=N
     k = cntrs.shape[0]
     if dists is None:
         dists = np.zeros((n, k))
-    for i in parallel.prange(n, nogil=True, num_threads=8):
+    #for i in parallel.prange(n, nogil=True, num_threads=8):
+    for i in range(n):
         for j in range(k):
-            dists[i,j] = _sq_dist(data[i,:], cntrs[j,:])
-            #dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], k)
+            #dists[i,j] = _sq_dist(data[i,:], cntrs[j,:])
+            dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], k)
     return np.array(dists)
 
 
@@ -64,5 +65,13 @@ def test_sq_distances():
             ] )
     sd = _sq_distances(data, cntrs)
     assert np.allclose( sd, dist ) 
+
+
+def test_default(double[:,::1] x=None):
+    cdef size_t i
+    if x is None:
+        x = np.zeros((10, 10))
+    for i in range(10):
+        x[i, i] = i
 
 
