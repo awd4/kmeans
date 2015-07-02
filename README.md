@@ -14,8 +14,8 @@ anything.  Just import kmeans and go.
 import kmeans
 
 data = np.random.rand(500, 2)
-centers = kmeans.kmeans(data, 10)
-labels = kmeans.assignments(data, centers)
-clusters = kmeans.cluster(data, centers)
+cntrs = kmeans.centers(data, 10)
+labels = kmeans.assign(data, cntrs)
+clusters = kmeans.cluster(data, cntrs)
 ```
 
