@@ -4,7 +4,7 @@ import cykmeans
 import numpy as np
 
 
-def kmeans(data, k, iters=20, reps=1):
+def centers(data, k, iters=20, reps=1):
     # TODO: prefer candidate centers that have exactly k centers
     data = np.require(data, np.float64, 'C')
     cntrs = _kmeans(data, k, iters)
@@ -18,7 +18,7 @@ def kmeans(data, k, iters=20, reps=1):
     return cntrs
 
 
-def assignments(data, cntrs, dists=None):
+def assign(data, cntrs, dists=None):
     data = np.require(data, np.float64, 'C')
     d = cykmeans._sq_distances(data, cntrs, dists)
     a = d.argmin(axis=1)
@@ -26,7 +26,7 @@ def assignments(data, cntrs, dists=None):
 
 
 def cluster(data, cntrs):
-    a = assignments(data, cntrs)
+    a = assign(data, cntrs)
     c = []
     for i in range(len(cntrs)):
         ai = a == i
@@ -51,7 +51,7 @@ def _kmeans(data, k, iters=20):
     valid = np.ones(k)
     for i in range(iters):
         valid[:] = 1
-        a = assignments(data, cntrs, dists)
+        a = assign(data, cntrs, dists)
         for j in range(k):
             aj = a==j
             if True in aj:
@@ -73,8 +73,8 @@ def test_cykmeans():
 
 def test_kmeans():
     data = np.random.rand(500, 2)
-    centers = kmeans(data, 10)
-    labels = assignments(data, centers)
-    clusters = cluster(data, centers)
+    cntrs = centers(data, 10)
+    labels = assign(data, cntrs)
+    clusters = cluster(data, cntrs)
 
 
