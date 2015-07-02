@@ -12,7 +12,7 @@ def centers(data, k, iters=20, reps=1, alg='lloyd'):
     best = _score(data, cntrs)
     for r in range(1, reps):
         c = _kmeans(data, k, _init, assigner, iters)    # candidate centers
-        s = score(data, c)
+        s = _score(data, c)
         if s < best:
             best = s
             cntrs = c
@@ -83,7 +83,6 @@ def _kmeans(data, k, initializer, assigner, iters=20):
     assert data.dtype == np.float64 and k >= 1 and iters >= 0
     n = len(data)
     cntrs = initializer(data, k)
-    dists = np.zeros((n, k))
     prev_a = None
     valid = np.ones(k)
     for i in range(iters):
