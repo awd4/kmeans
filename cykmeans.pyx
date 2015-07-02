@@ -39,8 +39,9 @@ cdef double _sq_dist_ptr(double *x, double *y, size_t n) nogil:
 def _sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=None):
     cdef:
         int i
-        size_t j, k, n
+        size_t j, k, n, m
     n = data.shape[0]
+    m = data.shape[1]
     k = cntrs.shape[0]
     if dists is None:
         dists = np.zeros((n, k))
@@ -48,7 +49,7 @@ def _sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=N
     for i in range(n):
         for j in range(k):
             #dists[i,j] = _sq_dist(data[i,:], cntrs[j,:])
-            dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], k)
+            dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], m)
     return np.array(dists)
 
 
@@ -65,6 +66,9 @@ def test_sq_distances():
             ] )
     sd = _sq_distances(data, cntrs)
     assert np.allclose( sd, dist ) 
+    cntrs = np.random.rand(100, 2)
+    sd = _sq_distances(data, cntrs)
+    assert not np.any( np.isnan(sd) )
 
 
 def test_default(double[:,::1] x=None):
