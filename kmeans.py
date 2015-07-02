@@ -7,10 +7,11 @@ import numpy as np
 def centers(data, k, iters=20, reps=1, alg='lloyd'):
     # TODO: prefer candidate centers that have exactly k centers
     data = np.require(data, np.float64, 'C')
-    cntrs = _kmeans(data, k, iters, alg)
+    assigner = _assigner_factory(alg, data, k)
+    cntrs = _kmeans(data, k, _init, assigner, iters)
     best = _score(data, cntrs)
     for r in range(1, reps):
-        c = _kmeans(data, k, iters, alg)    # candidate centers
+        c = _kmeans(data, k, _init, assigner, iters)    # candidate centers
         s = score(data, c)
         if s < best:
             best = s
@@ -18,9 +19,9 @@ def centers(data, k, iters=20, reps=1, alg='lloyd'):
     return cntrs
 
 
-def assign(data, cntrs, dists=None):
+def assign(data, cntrs):
     data = np.require(data, np.float64, 'C')
-    d = cykmeans._sq_distances(data, cntrs, dists)
+    d = cykmeans._sq_distances(data, cntrs)
     a = d.argmin(axis=1)
     return a
 
@@ -37,9 +38,40 @@ def cluster(data, cntrs):
 
 
 def _init(data, k):
+    n = len(data)
     cntrs = data[np.random.randint(n, size=k)] 
     cntrs += np.random.randn(*cntrs.shape) / 1000.
     return cntrs
+
+
+def _assigner_factory(alg, data, k):
+    sub_factory = {
+            'lloyd':_lloyd_assigner,
+            'elkan':_elkan_assigner,
+            }[alg]
+    return sub_factory(data, k)
+
+
+def _lloyd_assigner(data, k):
+    n = len(data)
+    dists = np.zeros((n, k))
+    def lloyd(data, cntrs):
+        data = np.require(data, np.float64, 'C')
+        d = cykmeans._sq_distances(data, cntrs, dists)
+        a = d.argmin(axis=1)
+        return a
+    return lloyd
+
+
+def _elkan_assigner(data, k):
+    n = len(data)
+    dists = np.zeros((n, k))
+    def elkan(data, cntrs):
+        data = np.require(data, np.float64, 'C')
+        d = cykmeans._sq_distances(data, cntrs, dists)
+        a = d.argmin(axis=1)
+        return a
+    return elkan
 
 
 def _score(data, cntrs):
@@ -47,16 +79,16 @@ def _score(data, cntrs):
     return d.min(axis=1).sum()
 
 
-def _kmeans(data, k, iters=20, alg='lloyd'):
+def _kmeans(data, k, initializer, assigner, iters=20):
     assert data.dtype == np.float64 and k >= 1 and iters >= 0
     n = len(data)
-    cntrs = _init(data, k)
+    cntrs = initializer(data, k)
     dists = np.zeros((n, k))
     prev_a = None
     valid = np.ones(k)
     for i in range(iters):
         valid[:] = 1
-        a = assign(data, cntrs, dists)
+        a = assigner(data, cntrs)
         for j in range(k):
             aj = a==j
             if True in aj:
