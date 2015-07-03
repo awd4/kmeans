@@ -71,11 +71,3 @@ def test_sq_distances():
     assert not np.any( np.isnan(sd) )
 
 
-def test_default(double[:,::1] x=None):
-    cdef size_t i
-    if x is None:
-        x = np.zeros((10, 10))
-    for i in range(10):
-        x[i, i] = i
-
-

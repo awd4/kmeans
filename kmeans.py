@@ -75,7 +75,7 @@ class _elkan_assigner(object):
     def __call__(self, cntrs):
         # Update lower and upper bounds
         data, k, lb, ub, cc, ca, pc = self.data, self.k, self.lb, self.ub, self.cc, self.ca, self.pc
-        cdist = np.sqrt( np.array( [cykmeans._sq_dist( self.pc[i,:], cntrs[i,:] ) for i in range(self.k)] ) )
+        cdist = np.sqrt( np.array( [cykmeans._sq_dist( self.pc[i,:], cntrs[i,:] ) for i in range(k)] ) )
         lb -= cdist[None, :]
         for i, x in enumerate(data):
             q = ca[i]
@@ -84,7 +84,7 @@ class _elkan_assigner(object):
         cc[:] = np.sqrt( cykmeans._sq_distances(cntrs, cntrs) )
         for i, x in enumerate(data):
             q = ca[i]
-            for j in range(self.k):
+            for j in range(k):
                 if q == j:
                     continue
                 if ub[i] > 0.5 * cc[q, j]:
@@ -144,7 +144,6 @@ def _kmeans(data, k, cntrs, assigner, iters=20):
 
 def test_cykmeans():
     cykmeans.test_sq_distances()
-    cykmeans.test_default()
 
 def test_kmeans():
     data = np.random.rand(500, 2)
@@ -153,29 +152,29 @@ def test_kmeans():
     clusters = cluster(data, cntrs)
 
 def test_elkan():
+    import time
     n = 500
     k = 10
-    np.random.seed(12345)
-    d1 = np.random.rand(n, 2)
-    c1 = centers(d1, k, alg='lloyd')
-    l1 = assign(d1, c1)
-    u1 = cluster(d1, c1)
-    return
-    print k
-    print d1.shape
-    print c1.shape
-    np.random.seed(12345)
-    d2 = np.random.rand(n, 2)
-    c2 = centers(d2, k, alg='elkan')
-    print k
-    print d2.shape
-    print c2.shape
-    l2 = assign(d2, c2)
-    return
-    u2 = cluster(d2, c2)
-    assert np.all( d1 == d2 )
+    data = np.random.rand(n, 2)
+    seed = np.random.randint(5000000)
+    # Run Lloyd's algorithm
+    np.random.seed(seed)
+    start = time.time()
+    c1 = centers(data, k, alg='lloyd')
+    t1 = time.time() - start
+    l1 = assign(data, c1)
+    u1 = cluster(data, c1)
+    # Run Elkan's algorithm
+    np.random.seed(seed)
+    start = time.time()
+    c2 = centers(data, k, alg='elkan')
+    t2 = time.time() - start
+    l2 = assign(data, c2)
+    u2 = cluster(data, c2)
+    # Check that the results are the same and that Elkan was faster
     assert np.all( c1 == c2 )
     assert np.all( l1 == l2 )
     assert all( [np.all( e1 == e2 ) for e1, e2 in zip(u1, u2)] )
+    assert t1 >= t2
 
 
