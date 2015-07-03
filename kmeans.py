@@ -65,51 +65,18 @@ def _lloyd_assigner(data, cntrs):
 class _elkan_assigner(object):
     def __init__(self, data, cntrs):
         self.data = np.require(data, np.float64, 'C')
-        self.k = len(cntrs)
-        self.lb = np.sqrt( cykmeans._sq_distances(data, cntrs) )    # lower-bounds
-        self.ub = self.lb.min(axis=1)                               # upper-bounds
-        self.cc = np.zeros((self.k, self.k))                        # center-to-center distances
-        self.ca = self.lb.argmin(axis=1)                            # current assignments
-        self.pc = cntrs.copy()                                      # centers from previous iteration
+        k = len(cntrs)
+        self.lb = cykmeans._distances(data, cntrs)  # lower-bounds
+        self.ub = self.lb.min(axis=1)               # upper-bounds
+        self.cu = np.zeros(k)                       # center update-distances
+        self.cc = np.zeros((k, k))                  # center-to-center distances
+        self.ca = self.lb.argmin(axis=1)            # current assignments
+        self.pc = cntrs.copy()                      # centers from previous iteration
 
     def __call__(self, cntrs):
-        # Update lower and upper bounds
-        data, k, lb, ub, cc, ca, pc = self.data, self.k, self.lb, self.ub, self.cc, self.ca, self.pc
-        cdist = np.sqrt( np.array( [cykmeans._sq_dist( self.pc[i,:], cntrs[i,:] ) for i in range(k)] ) )
-        lb -= cdist[None, :]
-        for i, x in enumerate(data):
-            q = ca[i]
-            ub[i] += cdist[q]
-        # Re-assign points to centers (if needed)
-        cc[:] = np.sqrt( cykmeans._sq_distances(cntrs, cntrs) )
-        for i, x in enumerate(data):
-            q = ca[i]
-            for j in range(k):
-                if q == j:
-                    continue
-                if ub[i] > 0.5 * cc[q, j]:
-                    break
-            else:   # no break happened in the for-loop
-                continue    # skip this point; its center does not change
-            upper_tight = False
-            for j, c in enumerate(cntrs):
-                if q == j:
-                    continue
-                if ub[i] <= 0.5 * cc[q, j] or ub[i] <= lb[i, j]:
-                    continue
-                if not upper_tight:
-                    lb[i, q] = np.sqrt( cykmeans._sq_dist( x, cntrs[q,:] ) )
-                    ub[i] = lb[i, q]
-                    upper_tight = True
-                    if ub[i] <= 0.5 * cc[q, j] or ub[i] <= lb[i, j]:
-                        continue
-                lb[i, j] = np.sqrt( cykmeans._sq_dist( x, cntrs[j,:] ) )
-                if lb[i, j] <= ub[i]:
-                    ca[i] = j
-                    q = j
-                    ub[i] = lb[i, j]
-        pc = cntrs.copy()
-        return ca
+        cykmeans._elkan(cntrs, self.data, self.lb, self.ub, self.cu, self.cc, self.ca, self.pc)
+        self.pc = cntrs.copy()
+        return self.ca
 
 
 def _score(data, cntrs):
@@ -122,23 +89,16 @@ def _kmeans(data, k, cntrs, assigner, iters=20):
     assert data.dtype == np.float64 and k >= 1 and iters >= 0
     n = float(len(data))
     prev_a = None
-    valid = np.ones(k)
+    valid = np.zeros(k, dtype=np.int64)
     for i in range(iters):
-        valid[:] = 1
         a = assigner(cntrs)
-        for j in range(k):
-            aj = a==j
-            if True in aj:
-                cntrs[j,:] = data[a==j,:].mean()
-            else:
-                valid[j] = 0
+        cykmeans._adjust_centers(data, cntrs, a, valid)
         # stop updating the centers if less than 1% of the points have changed clusters
         changed = np.sum( prev_a != a ) if prev_a is not None else n
         if changed / n < 0.01:
             break
         prev_a = a.copy()
-    cntrs = cntrs[valid==1]
-    return cntrs
+    return cntrs[valid>=1]
 
 
 
@@ -171,10 +131,9 @@ def test_elkan():
     t2 = time.time() - start
     l2 = assign(data, c2)
     u2 = cluster(data, c2)
-    # Check that the results are the same and that Elkan was faster
+    # Check that the results are the same
     assert np.all( c1 == c2 )
     assert np.all( l1 == l2 )
     assert all( [np.all( e1 == e2 ) for e1, e2 in zip(u1, u2)] )
-    assert t1 >= t2
 
 

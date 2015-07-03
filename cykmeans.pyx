@@ -1,8 +1,8 @@
 import numpy as np
-#cimport numpy as cnp
+from libc.math cimport sqrt as csqrt
 
-import cython
-#from cython cimport parallel
+cimport cython
+from cython cimport parallel
 
 
 @cython.boundscheck(False)
@@ -21,6 +21,43 @@ def _sq_dist(double[::1] x, double[::1] y):
     return sd
 
 
+def _sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=None):
+    if dists is None:
+        dists = np.zeros((data.shape[0], cntrs.shape[0]))
+    _c_sq_distances(data, cntrs, dists)
+    return np.array(dists)
+
+
+def _distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=None):
+    if dists is None:
+        dists = np.zeros((data.shape[0], cntrs.shape[0]))
+    _c_distances(data, cntrs, dists)
+    return np.array(dists)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _adjust_centers(double[:,::1] data, double[:,::1] cntrs, long[::1] a, long[::1] valid):
+    cdef:
+        size_t i, j, k, m, n
+        long q
+    n = data.shape[0]
+    m = data.shape[1]
+    k = cntrs.shape[0]
+    for i in range(k):
+        valid[i] = 0
+        for j in range(m):
+            cntrs[i,j] = 0.0
+    for i in range(n):
+        q = a[i]
+        valid[q] += 1
+        for j in range(m):
+            cntrs[q,j] += data[i,j]
+    for i in range(k):
+        for j in range(m):
+            cntrs[i,j] /= valid[i]
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef double _sq_dist_ptr(double *x, double *y, size_t n) nogil:
@@ -36,21 +73,80 @@ cdef double _sq_dist_ptr(double *x, double *y, size_t n) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=None):
+cdef void _c_sq_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists):
     cdef:
         int i
         size_t j, k, n, m
     n = data.shape[0]
     m = data.shape[1]
     k = cntrs.shape[0]
-    if dists is None:
-        dists = np.zeros((n, k))
-    #for i in parallel.prange(n, nogil=True, num_threads=8):
+    for i in parallel.prange(n, nogil=True, num_threads=8):
+    #for i in range(n):
+        for j in range(k):
+            dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], m)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef void _c_distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists):
+    cdef:
+        size_t i, j
+    _c_sq_distances(data, cntrs, dists)
+    for i in range(dists.shape[0]):
+        for j in range(dists.shape[1]):
+            dists[i, j] = csqrt(dists[i,j])
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _elkan(double[:,::1] cntrs, double[:,::1] data, double[:,::1] lb, double[::1] ub, double[::1] cu, double[:,::1] cc, long[::1] ca, double[:,::1] pc):
+    cdef:
+        int i
+        size_t j, n, m
+        size_t k
+        long q
+        bint upper_tight
+    n = data.shape[0]
+    m = data.shape[1]
+    k = cc.shape[0]
+    # Update lower and upper bounds
+    for i in range(k):
+        cu[i] = csqrt( _sq_dist_ptr(&pc[i,0], &cntrs[i,0], m) )
     for i in range(n):
         for j in range(k):
-            #dists[i,j] = _sq_dist(data[i,:], cntrs[j,:])
-            dists[i,j] = _sq_dist_ptr(&data[i,0], &cntrs[j,0], m)
-    return np.array(dists)
+            lb[i, j] -= cu[j]
+    for i in range(n):
+        q = ca[i]
+        ub[i] += cu[q]
+    # Re-assign points to centers (if needed)
+    _c_distances(cntrs, cntrs, cc)
+    for i in parallel.prange(n, nogil=True, num_threads=8):
+    #for i in range(n):
+        q = ca[i]
+        for j in range(k):
+            if q == j:
+                continue
+            if ub[i] > 0.5 * cc[q, j]:
+                break
+        else:   # no break happened in the for-loop
+            continue    # skip this point; its center does not change
+        upper_tight = False
+        for j in range(k):
+            if q == j:
+                continue
+            if ub[i] <= 0.5 * cc[q, j] or ub[i] <= lb[i, j]:
+                continue
+            if not upper_tight:
+                lb[i, q] = csqrt( _sq_dist_ptr( &data[i,0], &cntrs[q,0], m ) )
+                ub[i] = lb[i, q]
+                upper_tight = True
+                if ub[i] <= 0.5 * cc[q, j] or ub[i] <= lb[i, j]:
+                    continue
+            lb[i, j] = csqrt( _sq_dist_ptr( &data[i,0], &cntrs[j,0], m ) )
+            if lb[i, j] <= ub[i]:
+                ca[i] = j
+                q = j
+                ub[i] = lb[i, j]
 
 
 
