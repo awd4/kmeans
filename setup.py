@@ -24,7 +24,6 @@ for m in ext_modules:
     # Typically, the setup.py file would reside one directory below
     # the kmeans/ package. Things get messed up because we want to
     # place setup.py inside the package.  This hack fixes things.
-    print m.name
     m.name = m.name[7:]
 
 setup( 
