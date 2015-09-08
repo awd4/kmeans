@@ -1,4 +1,3 @@
-import pyximport; pyximport.install()
 import cykmeans
 
 import numpy as np
