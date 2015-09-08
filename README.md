@@ -10,6 +10,21 @@ module to automatically call the setup.py module, which takes
 care of building the cykmeans.so file.  So there is no need
 to manually build anything.  Just import kmeans and go.
 
+### INSTALL
+
+Currently there are two recommended ways of using kmeans.
+The first is to copy the code to a convenient location
+(e.g., into the root directory of your code).
+
+The second is to do a user install, which places the kmeans
+package in the user-site directory.  To do that, run:
+```
+python setup.py user_install
+```
+This is a non-standard way to distribute a package (it's not
+up on PyPI and not pip-installable).  Perhaps I will change
+that later, but for now it is what it is.
+
 ### EXAMPLE
 
 ```
