@@ -39,7 +39,7 @@ def _distances(double[:,::1] data, double[:,::1] cntrs, double[:,::1] dists=None
 @cython.wraparound(False)
 def _adjust_centers(double[:,::1] data, double[:,::1] cntrs, long[::1] a, long[::1] valid):
     cdef:
-        size_t i, j, k, m, n
+        size_t i, j, k, l, m, n
         long q
     n = data.shape[0]
     m = data.shape[1]
@@ -54,8 +54,13 @@ def _adjust_centers(double[:,::1] data, double[:,::1] cntrs, long[::1] a, long[:
         for j in range(m):
             cntrs[q,j] += data[i,j]
     for i in range(k):
-        for j in range(m):
-            cntrs[i,j] /= valid[i]
+        if valid[i] > 0:
+            for j in range(m):
+                cntrs[i,j] /= valid[i]
+        else:
+            l = np.random.randint(data.shape[0])
+            for j in range(m):
+                cntrs[i,j] = data[l,j]
 
 
 @cython.boundscheck(False)
@@ -165,5 +170,13 @@ def test_sq_distances():
     cntrs = np.random.rand(100, 2)
     sd = _sq_distances(data, cntrs)
     assert not np.any( np.isnan(sd) )
+
+def test_adjust_centers():
+    data = np.array( [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [2.0, 0.0]] )
+    cntrs = np.zeros( (3,2) )
+    a = np.array( [0, 2, 2, 2], dtype=int )
+    valid = np.zeros( cntrs.shape[0], dtype=int )
+    _adjust_centers(data, cntrs, a, valid)
+    assert not np.any( np.isnan( np.array(cntrs) ) )
 
 

@@ -103,6 +103,7 @@ def _kmeans(data, k, cntrs, assigner, iters=20):
 
 def test_cykmeans():
     cykmeans.test_sq_distances()
+    cykmeans.test_adjust_centers()
 
 def test_kmeans():
     data = np.random.rand(500, 2)
@@ -131,6 +132,9 @@ def test_elkan():
     l2 = assign(data, c2)
     u2 = cluster(data, c2)
     # Check that the results are the same
+    if np.any(c1 != c2):
+        print 'c1', c1
+        print 'c2', c2
     assert np.all( c1 == c2 )
     assert np.all( l1 == l2 )
     assert all( [np.all( e1 == e2 ) for e1, e2 in zip(u1, u2)] )

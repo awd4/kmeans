@@ -2,6 +2,9 @@ from distutils.core import setup
 from Cython.Build import cythonize
 
 import os
+import sys
+import site
+import shutil
 
 
 def build():
@@ -28,11 +31,11 @@ def build():
     os.chdir(odir)
 
 def user_install():
-    import site
-    import shutil
     sdir = site.getusersitepackages()                       # site directory
     idir = os.path.join( sdir, 'kmeans' )                   # install directory
     cdir = os.path.dirname( os.path.realpath(__file__) )    # code directory
+    if idir == cdir:
+        raise Exception, 'Cannot install from the target directory.'
     if os.path.exists( idir ):
         reply = raw_input('Overwrite ' + idir + ' (y/n)?')
         if reply in ['y', 'Y', 'yes', 'Yes']:
@@ -46,7 +49,6 @@ def user_install():
 
 
 if __name__ == '__main__':
-    import sys
     if len(sys.argv) > 1:
         if sys.argv[1].startswith('build'):
             build()
